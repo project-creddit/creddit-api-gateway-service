@@ -44,6 +44,26 @@ public class AuthorizationHeaderFilter extends AbstractGatewayFilterFactory<Auth
         });
     }
 
+    private boolean isJwtValid(String jwt) {
+        boolean returnValue = true;
+
+        String subject = null;
+
+        try {
+            subject = Jwts.parser().setSigningKey(env.getProperty("token.secret"))
+                    .parseClaimsJws(jwt).getBody()
+                    .getSubject();
+        } catch (Exception ex) {
+            returnValue = false;
+        }
+
+        if (subject == null || subject.isEmpty()) {
+            returnValue = false;
+        }
+
+        return returnValue;
+    }
+
 
     public static class Config {
         // Put configuration properties here
