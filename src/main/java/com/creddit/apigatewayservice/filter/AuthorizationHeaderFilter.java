@@ -1,8 +1,14 @@
 package com.creddit.apigatewayservice.filter;
 
+import com.creddit.apigatewayservice.trace.Trace;
+import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.MalformedJwtException;
+import io.jsonwebtoken.UnsupportedJwtException;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.http.HttpHeaders;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.cloud.gateway.filter.GatewayFilter;
 import org.springframework.cloud.gateway.filter.factory.AbstractGatewayFilterFactory;
 import org.springframework.core.env.Environment;
@@ -17,6 +23,7 @@ import reactor.core.publisher.Mono;
 @Slf4j
 public class AuthorizationHeaderFilter extends AbstractGatewayFilterFactory<AuthorizationHeaderFilter.Config> {
     private final Environment env;
+    private final Logger logger = LoggerFactory.getLogger(AuthorizationHeaderFilter.class);
 
     public AuthorizationHeaderFilter(Environment env) {
         super(Config.class);
@@ -25,6 +32,7 @@ public class AuthorizationHeaderFilter extends AbstractGatewayFilterFactory<Auth
 
     // login -> token -> users (with token) -> header(include token)
     @Override
+    @Trace
     public GatewayFilter apply(Config config) {
         return ((exchange, chain) -> {
             ServerHttpRequest request = exchange.getRequest();
@@ -44,6 +52,7 @@ public class AuthorizationHeaderFilter extends AbstractGatewayFilterFactory<Auth
         });
     }
 
+    @Trace
     private boolean isJwtValid(String jwt) {
         boolean returnValue = true;
 
@@ -53,7 +62,17 @@ public class AuthorizationHeaderFilter extends AbstractGatewayFilterFactory<Auth
             subject = Jwts.parser().setSigningKey(env.getProperty("token.secret"))
                     .parseClaimsJws(jwt).getBody()
                     .getSubject();
-        } catch (Exception ex) {
+        } catch (io.jsonwebtoken.security.SecurityException | MalformedJwtException e) {
+            logger.error("잘못된 JWT 서명");
+            returnValue = false;
+        } catch (ExpiredJwtException e) {
+            logger.error("만료된 JWT 토큰");
+            returnValue = false;
+        } catch (UnsupportedJwtException e) {
+            logger.error("지원되지 않는 JWT 토큰");
+            returnValue = false;
+        } catch (IllegalArgumentException e) {
+            logger.error("JWT 토큰이 잘못되었습니다");
             returnValue = false;
         }
 
