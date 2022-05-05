@@ -59,7 +59,7 @@ public class AuthorizationHeaderFilter extends AbstractGatewayFilterFactory<Auth
         String subject = null;
 
         try {
-            subject = Jwts.parser().setSigningKey(env.getProperty("token.secret"))
+            subject = Jwts.parserBuilder().setSigningKey(env.getProperty("token.secret")).build()
                     .parseClaimsJws(jwt).getBody()
                     .getSubject();
         } catch (io.jsonwebtoken.security.SecurityException | MalformedJwtException e) {
